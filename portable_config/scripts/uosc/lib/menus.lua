@@ -12,7 +12,7 @@ function open_command_menu(data, opts)
 	---@type MenuOptions
 	local menu_opts = {}
 	if opts then
-		menu_opts.submenu, menu_opts.mouse_nav = opts.submenu, opts.mouse_nav
+		menu_opts.mouse_nav = opts.mouse_nav
 		if opts.on_close then menu_opts.on_close = function() run_command(opts.on_close) end end
 	end
 	local menu = Menu:open(data, run_command, menu_opts)
@@ -26,7 +26,7 @@ function toggle_menu_with_items(opts)
 	else open_command_menu({type = 'menu', items = config.menu_items}, opts) end
 end
 
----@param options {type: string; title: string; list_prop: string; active_prop?: string; serializer: fun(list: any, active: any): MenuDataItem[]; on_select: fun(value: any)}
+---@param options {type: string; title: string; list_prop: string; active_prop?: string; serializer: fun(list: any, active: any): MenuDataItem[]; on_select: fun(value: any); on_move_item?: fun(from_index: integer, to_index: integer, submenu_path: integer[]); on_delete_item?: fun(index: integer, submenu_path: integer[])}
 function create_self_updating_menu_opener(options)
 	return function()
 		if Menu:is_open(options.type) then Menu:close() return end
@@ -65,6 +65,8 @@ function create_self_updating_menu_opener(options)
 				mp.unobserve_property(handle_list_prop_change)
 				mp.unobserve_property(handle_active_prop_change)
 			end,
+			on_move_item = options.on_move_item,
+			on_delete_item = options.on_delete_item,
 		})
 	end
 end
@@ -75,7 +77,7 @@ function create_select_tracklist_type_menu_opener(menu_title, track_type, track_
 
 		if load_command then
 			items[#items + 1] = {
-				title = '导入', bold = true, italic = true, hint = '打开文件', value = '{load}', separator = true,
+				title = lang._submenu_import, bold = true, italic = true, hint = lang._submenu_load_file, value = '{load}', separator = true,
 			}
 		end
 
@@ -89,7 +91,7 @@ function create_select_tracklist_type_menu_opener(menu_title, track_type, track_
 		-- If I'm mistaken and there is an active need for this, feel free to
 		-- open an issue.
 		if track_type == 'sub' or track_type == 'audio' or track_type == 'video' then
-			disabled_item = {title = '禁用', italic = true, muted = true, hint = '—', value = nil, active = true}
+			disabled_item = {title = lang._submenu_id_disabled, italic = true, muted = true, hint = '—', value = nil, active = true}
 			items[#items + 1] = disabled_item
 		end
 
@@ -104,14 +106,14 @@ function create_select_tracklist_type_menu_opener(menu_title, track_type, track_
 				end
 				if track['demux-fps'] then h(string.format('%.5gfps', track['demux-fps'])) end
 				h(track.codec)
-				if track['audio-channels'] then h(track['audio-channels'] .. ' channels') end
+				if track['audio-channels'] then h(track['audio-channels'] .. lang._submenu_id_hint) end
 				if track['demux-samplerate'] then h(string.format('%.3gkHz', track['demux-samplerate'] / 1000)) end
-				if track.forced then h('强制') end
-				if track.default then h('默认') end
-				if track.external then h('外挂') end
+				if track.forced then h(lang._submenu_id_forced) end
+				if track.default then h(lang._submenu_id_default) end
+				if track.external then h(lang._submenu_id_external) end
 
 				items[#items + 1] = {
-					title = (track.title and track.title or '轨道 ' .. track.id),
+					title = (track.title and track.title or lang._submenu_id_title .. track.id),
 					hint = table.concat(hint_values, ', '),
 					value = track.id,
 					active = track.selected,
@@ -178,11 +180,11 @@ function open_file_navigation_menu(directory_path, handle_select, opts)
 	local items = {}
 
 	if is_root then
-		if state.os == 'windows' then
-			items[#items + 1] = {title = '..', hint = '驱动器列表', value = '{drives}', separator = true}
+		if state.platform == 'windows' then
+			items[#items + 1] = {title = '..', hint = lang._submenu_file_browser_item_hint, value = '{drives}', separator = true}
 		end
 	else
-		items[#items + 1] = {title = '..', hint = '上级目录', value = directory.dirname, separator = true}
+		items[#items + 1] = {title = '..', hint = lang._submenu_file_browser_item_hint2, value = directory.dirname, separator = true}
 	end
 
 	local back_path = items[#items] and items[#items].value
@@ -274,7 +276,7 @@ function open_drives_menu(handle_select, opts)
 			if drive then
 				local drive_path = normalize_path(drive)
 				items[#items + 1] = {
-					title = drive, hint = '盘符', value = drive_path, active = opts.active_path == drive_path,
+					title = drive, hint = lang._submenu_file_browser_item2_hint, value = drive_path, active = opts.active_path == drive_path,
 				}
 				if opts.selected_path == drive_path then selected_index = #items end
 			end
@@ -284,7 +286,7 @@ function open_drives_menu(handle_select, opts)
 	end
 
 	return Menu:open(
-		{type = opts.type, title = opts.title or '驱动器列表', items = items, selected_index = selected_index},
+		{type = opts.type, title = opts.title or lang._submenu_file_browser_title, items = items, selected_index = selected_index},
 		handle_select
 	)
 end
